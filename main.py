@@ -1,12 +1,33 @@
 ###############################################
 #          Import some packages               #
 ###############################################
-from flask import Flask, render_template
+import atexit
+from bokeh.embed import server_document
+from dominate.tags import img
+from flask import Flask, render_template, Response
+from flask.templating import render_template_string
 from flask_bootstrap import Bootstrap
 from flask_nav import Nav
 from flask_nav.elements import *
-from dominate.tags import img
 
+import io
+import base64
+
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set(style='white', font_scale=1.25)
+plt.rc("axes.spines", top=False, right=False)
+plt.rc('xtick', bottom=True)
+plt.rc('ytick', left=True)
+
+import subprocess
+
+import numpy as np
 ###############################################
 #          Define flask app                   #
 ###############################################
@@ -29,6 +50,7 @@ nav.register_element('top', topbar)
 
 app = Flask(__name__)
 Bootstrap(app)
+print('Test')
 
 
 ###############################################
@@ -42,17 +64,53 @@ def get_home():
 ###############################################
 #          Render Cluster page                   #
 ###############################################
-@app.route('/cluster', methods=["GET"])
+# @app.route('/cluster')
+# def get_cluster():
+#     return (render_template('cluster.html'))
+
+bokeh_process = subprocess.Popen([
+    'python', '-m', 'bokeh', 'serve',
+    '--allow-websocket-origin=localhost:8001', 'bokeh_server.py'
+],
+                                 stdout=subprocess.PIPE)
+
+
+@app.route('/cluster')
 def get_cluster():
-    return (render_template('cluster.html'))
+
+    bokeh_script = server_document(url='http://localhost:8001/bokeh_server')
+    return render_template('cluster.html', bokeh_script=bokeh_script)
+
+
+@atexit.register
+def kill_server():
+    bokeh_process.kill()
 
 
 ###############################################
 #          Render State page                   #
 ###############################################
+@app.route('/state/plot.png')
+def plot_png():
+    fig = create_figure()
+    output = io.BytesIO()
+    FigureCanvas(fig).print_png(output)
+    return Response(output.getvalue(), mimetype='image/png')
+
+
+def create_figure():
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    x = np.random.rand(10)
+    y = np.random.rand(10)
+
+    ax.scatter(x, y, color="#304C89")
+    return fig
+
+
 @app.route('/state', methods=["GET"])
 def get_state():
-    return (render_template('state.html'))
+    return render_template('state.html')
 
 
 ###############################################
