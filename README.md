@@ -1,3 +1,3 @@
 # hsc_webapp
 
-Web App for HSC results
+Flask based web app for sharing "Meta-Analytic Hematopoeitic Stem Cell Atlas" data with. Currently in development
